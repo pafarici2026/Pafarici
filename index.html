@@ -35,4 +35,103 @@ button,input,select{font:inherit} button{cursor:pointer}
 <section id="service" class="screen"><button class="back" onclick="show('start')">← Înapoi</button><span class="pill">SERVICII</span><h2>Ce serviciu oferi?</h2><p>Prezintă serviciul tău și zona în care lucrezi. Publicarea anunțurilor va fi disponibilă în versiunea completă.</p><div class="formbox"><label>Serviciul tău</label><input placeholder="Ex. montaj mobilă"/><label>Oraș sau zonă</label><input placeholder="Ex. Ploiești"/><label>Descriere scurtă</label><input placeholder="Ce poți face?"/><button class="primary" style="margin-top:18px" onclick="alert('Prototip demonstrativ — anunțul nu este publicat.')">CONTINUĂ</button></div></section>
 <section id="login" class="screen"><button class="back" onclick="show('home')">← Înapoi</button><h2>Bine ai revenit!</h2><p>Autentificarea nu este încă activă în acest prototip.</p><div class="formbox"><label>Email</label><input type="email" placeholder="adresa@email.com"/><label>Parolă</label><input type="password" placeholder="Parola ta"/><button class="primary" style="margin-top:18px" onclick="alert('Autentificarea va fi construită într-o etapă următoare.')">CONECTARE</button></div></section>
 <footer class="foot">PAFARICI · Prototip de concept<br>Prin continuare, în versiunea publică, vei accepta <a href="#" onclick="alert('Termenii vor fi publicați înainte de lansare.');return false">Termenii</a> și <a href="#" onclick="alert('Politica de confidențialitate va fi publicată înainte de lansare.');return false">Politica de confidențialitate</a>.</footer>
-</main><script>function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');window.scrollTo({top:0,behavior:'smooth'})}</script></body></html>
+</main><script>function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');window.scrollTo({top:0,behavior:'smooth'})}</script> <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const sb = window.supabase.createClient(
+  'https://kpluzfvnqyivguqmsjll.supabase.co',
+  'sb_publishable_mbL7I8b7GSJPq9jLWtpdeg_iwRZdeUM'
+);
+
+const login = document.querySelector('#login');
+const fields = login.querySelectorAll('input');
+const email = fields[0];
+const password = fields[1];
+const oldButton = login.querySelector('.primary');
+const formbox = login.querySelector('.formbox');
+
+const name = document.createElement('input');
+name.placeholder = 'Nume și prenume';
+name.autocomplete = 'name';
+name.hidden = true;
+name.style.marginBottom = '12px';
+formbox.insertBefore(name, email);
+
+const toggle = document.createElement('button');
+toggle.className = 'secondary';
+toggle.textContent = 'NU AI CONT? CREEAZĂ UNUL';
+toggle.type = 'button';
+oldButton.after(toggle);
+
+const message = document.createElement('p');
+message.className = 'notice';
+message.setAttribute('role', 'status');
+formbox.appendChild(message);
+
+let signup = false;
+
+function say(text) {
+  message.textContent = text;
+}
+
+toggle.onclick = () => {
+  signup = !signup;
+  name.hidden = !signup;
+  name.required = signup;
+  oldButton.textContent = signup ? 'CREEAZĂ CONT' : 'CONECTARE';
+  toggle.textContent = signup
+    ? 'AI DEJA CONT? CONECTEAZĂ-TE'
+    : 'NU AI CONT? CREEAZĂ UNUL';
+  password.autocomplete = signup ? 'new-password' : 'current-password';
+  say('');
+};
+
+oldButton.removeAttribute('onclick');
+oldButton.onclick = async () => {
+  const e = email.value.trim();
+  const p = password.value;
+
+  if (!e || !p || p.length < 8) {
+    say('Introdu emailul și o parolă de minimum 8 caractere.');
+    return;
+  }
+
+  if (signup && !name.value.trim()) {
+    say('Introdu numele tău.');
+    return;
+  }
+
+  oldButton.disabled = true;
+  say('Se procesează...');
+
+  try {
+    if (signup) {
+      const {data, error} = await sb.auth.signUp({
+        email: e,
+        password: p,
+        options: {
+          data: {full_name: name.value.trim()}
+        }
+      });
+
+      if (error) throw error;
+
+      say(data.session
+        ? 'Cont creat! Profilul tău a fost înregistrat.'
+        : 'Cont creat! Verifică emailul pentru confirmare.');
+    } else {
+      const {error} = await sb.auth.signInWithPassword({
+        email: e,
+        password: p
+      });
+
+      if (error) throw error;
+
+      say('Te-ai conectat cu succes la PAFARICI!');
+    }
+  } catch (err) {
+    say(err.message);
+  } finally {
+    oldButton.disabled = false;
+  }
+};
+</script> </body></html>
