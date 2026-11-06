@@ -36,7 +36,41 @@ button,input,select{font:inherit} button{cursor:pointer}
 <section id="work" class="screen"><button class="back" onclick="show('start')">← Înapoi</button><span class="pill">OPORTUNITĂȚI · 18+</span><h2>Cauți de lucru?</h2><p>În versiunea completă, vei putea găsi oportunități după zonă, program și tipul de activitate.</p><div class="formbox"><label>Oraș sau zonă</label><input placeholder="Unde poți lucra?"/><label>Ce fel de lucru cauți?</label><select><option>Alege un domeniu</option><option>Construcții</option><option>Mutări și transport</option><option>Curățenie</option><option>Grădinărit</option><option>Alte activități</option></select><label>Când ești disponibil?</label><select><option>Alege disponibilitatea</option><option>Astăzi</option><option>Mâine</option><option>În weekend</option><option>Pe termen mai lung</option></select><button class="primary" style="margin-top:18px" onclick="alert('În versiunea completă vom afișa oportunități. Formularul nu salvează date momentan.')">CAUTĂ OPORTUNITĂȚI</button></div><p class="notice">Anunțurile și condițiile de lucru vor trebui verificate înainte de lansarea publică.</p></section>
 <section id="service" class="screen"><button class="back" onclick="show('start')">← Înapoi</button><span class="pill">SERVICII</span><h2>Ce serviciu oferi?</h2><p>Prezintă serviciul tău și zona în care lucrezi. Publicarea anunțurilor va fi disponibilă în versiunea completă.</p><div class="formbox"><label>Serviciul tău</label><input placeholder="Ex. montaj mobilă"/><label>Oraș sau zonă</label><input placeholder="Ex. Ploiești"/><label>Descriere scurtă</label><input placeholder="Ce poți face?"/><button class="primary" style="margin-top:18px" onclick="alert('Prototip demonstrativ — anunțul nu este publicat.')">CONTINUĂ</button></div></section>
 <section id="login" class="screen"><button class="back" onclick="show('home')">← Înapoi</button><h2>Bine ai revenit!</h2><p>Autentificarea nu este încă activă în acest prototip.</p><div class="formbox"><label>Email</label><input type="email" placeholder="adresa@email.com"/><label>Parolă</label><input type="password" placeholder="Parola ta"/><button class="primary" style="margin-top:18px" onclick="alert('Autentificarea va fi construită într-o etapă următoare.')">CONECTARE</button></div></section>
-<footer class="foot">PAFARICI · Prototip de concept<br>Prin continuare, în versiunea publică, vei accepta <a href="#" onclick="alert('Termenii vor fi publicați înainte de lansare.');return false">Termenii</a> și <a href="#" onclick="alert('Politica de confidențialitate va fi publicată înainte de lansare.');return false">Politica de confidențialitate</a>.</footer>
+<section id="profile" class="screen">
+<button class="back" onclick="show('home')">← Înapoi</button>
+<span class="pill">CONTUL TĂU</span>
+<h2>Profilul meu</h2>
+<p>Completează informațiile tale.</p>
+<div class="formbox">
+<label>Nume și prenume</label>
+<input id="profile-name" placeholder="Numele tău"/>
+<label>Oraș sau zonă</label>
+<input id="profile-location" placeholder="Orașul tău"/>
+<label>Despre tine</label>
+<input id="profile-bio" placeholder="Câteva cuvinte"/>
+<label>Activitate preferată</label>
+<select id="profile-activity">
+<option value="">Alege activitatea</option>
+<option>Cafea sau ieșit în oraș</option>
+<option>Fotbal sau sport</option>
+<option>Plimbare</option>
+<option>Gaming</option>
+<option>Bowling</option>
+<option>Altceva</option>
+</select>
+<label>Când ești disponibil?</label>
+<select id="profile-availability">
+<option value="">Alege intervalul</option>
+<option>Acum</option>
+<option>Astăzi</option>
+<option>Mâine</option>
+<option>În weekend</option>
+</select>
+<button id="save-profile" class="primary" style="margin-top:18px">SALVEAZĂ PROFILUL</button>
+<p id="profile-message" class="notice"></p>
+</div>
+</section>
+  <footer class="foot">PAFARICI · Prototip de concept<br>Prin continuare, în versiunea publică, vei accepta <a href="#" onclick="alert('Termenii vor fi publicați înainte de lansare.');return false">Termenii</a> și <a href="#" onclick="alert('Politica de confidențialitate va fi publicată înainte de lansare.');return false">Politica de confidențialitate</a>.</footer>
 </main><script>function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');window.scrollTo({top:0,behavior:'smooth'})}</script> <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const sb = window.supabase.createClient(
@@ -129,7 +163,32 @@ data: {full_name: name.value.trim()}
 
       if (error) throw error;
 
-      say('Te-ai conectat cu succes la PAFARICI!');
+      const {data: userData, error: userError} = await sb.auth.getUser();
+if (userError) throw userError;
+
+const user = userData.user;
+if (!user) throw new Error('Nu am putut identifica utilizatorul.');
+
+const {data: profile, error: profileError} = await sb
+  .from('profiles')
+  .select('full_name, location, bio, activity, availability')
+  .eq('user_id', user.id)
+  .maybeSingle();
+
+if (profileError) throw profileError;
+
+document.getElementById('profile-name').value =
+  profile?.full_name || user.user_metadata?.full_name || '';
+
+document.getElementById('profile-location').value = profile?.location || '';
+document.getElementById('profile-bio').value = profile?.bio || '';
+document.getElementById('profile-activity').value = profile?.activity || '';
+document.getElementById('profile-availability').value = profile?.availability || '';
+
+document.getElementById('profile-message').textContent =
+  profile ? 'Profilul tău a fost găsit!' : 'Completează profilul tău.';
+
+show('profile');
     }
   } catch (err) {
     say(err.message);
@@ -137,7 +196,56 @@ data: {full_name: name.value.trim()}
     oldButton.disabled = false;
   }
 };
-</script> 
+document.getElementById('save-profile').onclick = async () => {
+  const button = document.getElementById('save-profile');
+  const status = document.getElementById('profile-message');
+
+  button.disabled = true;
+  status.textContent = 'Se salvează...';
+
+  try {
+    const {data, error} = await sb.auth.getUser();
+    if (error) throw error;
+
+    const user = data.user;
+    if (!user) throw new Error('Conectează-te din nou.');
+
+    const payload = {
+      user_id: user.id,
+      full_name: document.getElementById('profile-name').value.trim(),
+      email: user.email,
+      location: document.getElementById('profile-location').value.trim(),
+      bio: document.getElementById('profile-bio').value.trim(),
+      activity: document.getElementById('profile-activity').value || null,
+      availability: document.getElementById('profile-availability').value || null
+    };
+
+    if (!payload.full_name) {
+      throw new Error('Introdu numele și prenumele.');
+    }
+
+    const {data: existing, error: readError} = await sb
+      .from('profiles')
+      .select('id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (readError) throw readError;
+
+    const result = existing
+      ? await sb.from('profiles').update(payload).eq('user_id', user.id)
+      : await sb.from('profiles').insert(payload);
+
+    if (result.error) throw result.error;
+
+    status.textContent = 'Profil salvat cu succes! ❤️';
+
+  } catch (err) {
+    status.textContent = err.message;
+  } finally {
+    button.disabled = false;
+  }
+};</script> 
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
